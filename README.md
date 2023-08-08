@@ -226,3 +226,79 @@ DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.httpx.HttpxDownloadHandler"
 # DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.aiohttp.AioHttpDownloadHandler"
 # DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.requests.RequestsDownloadHandler"
 ```
+
+### Scheduler Settings
+
+```python
+# Scheduler to use (memory-based or Redis-based)
+SCHEDULER = "crawv.core.scheduler.memory.MemoryScheduler"
+# For distributed crawling:
+# SCHEDULER = "crawv.core.scheduler.redis.RedisScheduler"
+
+# Redis connection settings (for Redis scheduler)
+REDIS_URI = "redis://localhost:6379"
+QUEUE_KEY = "%(spider)s:queue"
+```
+
+## Response API
+
+Crawv provides a rich API for working with responses:
+
+### Extracting Data
+
+```python
+# Using CSS selectors
+title = response.css('title::text').get()
+all_links = response.css('a::attr(href)').getall()
+
+# Using XPath
+title = response.xpath('//title/text()').get()
+all_links = response.xpath('//a/@href').getall()
+```
+
+### Following Links
+
+```python
+# Follow a link
+yield response.follow('next-page.html', self.parse)
+
+# Follow a link with a callback
+yield response.follow('details.html', self.parse_details)
+
+# Follow all links matching a CSS selector
+yield from response.follow_all(css='a.product::attr(href)', callback=self.parse_product)
+```
+
+## More Commands
+
+```shell
+crawv -h
+```
+
+## Distributed Crawling
+
+To enable distributed crawling with Redis:
+
+1. Configure Redis in settings:
+
+```python
+SCHEDULER = "crawv.core.scheduler.redis.RedisScheduler"
+REDIS_URI = "redis://localhost:6379"
+QUEUE_KEY = "%(spider)s:queue"
+```
+
+2. Run multiple instances of your spider on different machines, all connecting to the same Redis server.
+
+## Contributing
+
+Please submit your suggestions to the owner by creating an issue.
+
+## Thanks
+
+[aiohttp](https://github.com/aio-libs/aiohttp/)
+
+[scrapy](https://github.com/scrapy/scrapy)
+
+[loguru](https://github.com/Delgan/loguru)
+
+[httpx](https://github.com/encode/httpx)
