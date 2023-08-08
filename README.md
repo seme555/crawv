@@ -74,3 +74,79 @@ This will create a basic spider in the `spiders` directory.
 
 ### Example Spider
 
+```python
+from crawv.spider import Spider
+
+
+class QuotesSpider(Spider):
+    name = 'quotes'
+    custom_settings = {
+        "SPIDER_IDLE": False
+    }
+    start_urls = [
+        'https://quotes.toscrape.com/tag/humor/',
+    ]
+
+    async def parse(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'author': quote.xpath('span/small/text()').get(),
+                'text': quote.css('span.text::text').get(),
+            }
+
+        next_page = response.css('li.next a::attr("href")').get()
+        if next_page is not None:
+            yield response.follow(next_page, self.parse)
+```
+
+### Creating a Single Spider Script
+
+```shell
+crawv onespider single_quotes
+```
+
+### Advanced Spider Example
+
+```python
+from crawv.spider import Spider
+from anti_header import Header
+from pprint import pprint, pformat
+
+
+class SingleQuotesSpider(Spider):
+    name = 'single_quotes'
+    custom_settings = {
+        "SPIDER_IDLE": False
+    }
+    start_urls = [
+        'https://quotes.toscrape.com/',
+    ]
+
+    async def process_request(self, request):
+        request.headers = Header(url=request.url, platform='windows', connection=True).random
+        return request
+
+    async def process_response(self, request, response):
+        if response.status in [404, 503]:
+            return request
+        return response
+
+    async def process_exception(self, request, exc):
+        raise exc
+
+    async def parse(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'author': quote.xpath('span/small/text()').get(),
+                'text': quote.css('span.text::text').get(),
+            }
+
+        next_page = response.css('li.next a::attr("href")').get()
+        if next_page is not None:
+            yield response.follow(next_page, callback=self.parse)
+
+    async def process_item(self, item):
+        self.logger.info("{item}", **{'item': pformat(item)})
+
+
+if __name__ == '__main__':
