@@ -150,3 +150,79 @@ class SingleQuotesSpider(Spider):
 
 
 if __name__ == '__main__':
+    quotes = SingleQuotesSpider()
+    quotes.start()
+```
+
+### Running Spiders
+
+```shell
+# Run a spider from a project
+crawv crawl quotes
+
+# Run a single spider script
+crawv runspider quotes.py
+```
+
+![run](./doc/images/run.png)
+
+### Running from Python Code
+
+```python
+from crawv.crawler import call_grace_instance
+from crawv.utils.tools import get_project_settings
+
+# Method 1: Load all spiders from a directory
+def load_spiders_from_directory():
+    process = call_grace_instance("crawler_process", get_project_settings())
+    process.load_spider(path='./spiders')
+    process.start()
+
+# Method 2: Run a specific spider by name
+def run_specific_spider():
+    process = call_grace_instance("crawler_process", get_project_settings())
+    process.crawl('myspider')
+    process.start()
+
+if __name__ == '__main__':
+    run_specific_spider()
+```
+
+## Configuration
+
+Crawv can be configured through the `settings.py` file in your project. Here are the most important settings:
+
+### Concurrency Settings
+
+```python
+# Maximum number of concurrent items being processed
+CONCURRENT_ITEMS = 100
+
+# Maximum number of concurrent requests
+CONCURRENT_REQUESTS = 16
+
+# Maximum number of concurrent requests per domain
+CONCURRENT_REQUESTS_PER_DOMAIN = 8
+
+# Maximum number of concurrent requests per IP
+CONCURRENT_REQUESTS_PER_IP = 0
+```
+
+### Download Settings
+
+```python
+# Delay between requests (in seconds)
+DOWNLOAD_DELAY = 0
+
+# Timeout for requests (in seconds)
+DOWNLOAD_TIMEOUT = 20
+
+# Whether to randomize the download delay
+RANDOMIZE_DOWNLOAD_DELAY = True
+
+# HTTP backend to use
+DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.httpx.HttpxDownloadHandler"
+# Other options:
+# DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.aiohttp.AioHttpDownloadHandler"
+# DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.requests.RequestsDownloadHandler"
+```
