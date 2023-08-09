@@ -74,3 +74,69 @@ class UploadCommand(Command):
 extras_require = {
     "all": [
         "aiohttp",
+        "httpx",
+        "anti-header",
+        "w3lib",
+        "parsel",
+        "PyDispatcher",
+        "redis",
+        "anyio",
+        "ujson"
+    ],
+    "aiohttp": ["aiohttp", "cryptography"],
+    "httpx": ["httpx[http2]>=0.23.0"],
+}
+
+
+setup(
+    name=NAME,
+    version=VERSION,
+    author=AUTHOR,
+    packages=find_packages(),
+    include_package_data=True,
+    package_data={"": ["*.py", "*.tmpl", '*.cfg']},
+    install_requires=[
+        "aiohttp",
+        "httpx",
+        "anti-header",
+        "w3lib",
+        "parsel",
+        "PyDispatcher",
+        "redis",
+        "anyio",
+        "ujson"
+    ],
+    extras_require=extras_require,
+    description=DESCRIPTION,
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    url=URL,
+    author_email=EMAIL,
+    license="MIT",
+    keywords="""
+                crawler
+                scrapy
+                asyncio
+                aiohttp
+                anti-header
+                anti-useragent
+                python3
+               """,
+    python_requires=REQUIRES_PYTHON,
+    zip_safe=False,
+    entry_points={
+        'console_scripts': ['crawv = crawv.cmdline:execute']
+    },
+    classifiers=[
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.7",
+        "Development Status :: 3 - Alpha",
+        "Framework :: AsyncIO",
+        "Operating System :: Unix",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: MacOS",
+    ],
+    # Build and upload package: python3 setup_bak.py upload
+    cmdclass={"upload": UploadCommand},
+)
