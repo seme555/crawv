@@ -1,0 +1,3 @@
+recursive-include crawv VERSION
+recursive-include crawv/templates/project *.tmpl *.cfg *.py
+recursive-include crawv/templates/spiders *.tmpl
