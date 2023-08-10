@@ -74,3 +74,39 @@ class Request(object):
 
     def _get_body(self):
         return self._body
+
+    def _set_body(self, body):
+        self._body = body or None
+
+    body = property(_get_body, _set_body)
+
+    def _get_json(self):
+        return self._json
+    
+    def _set_json(self, json):
+        self._json = json or None
+
+    json = property(_get_json, _set_json)
+
+    @property
+    def encoding(self):
+        return self._encoding
+
+    def __str__(self):
+        return "<%s %s>" % (self.method, self.url)
+
+    __repr__ = __str__
+
+    def copy(self):
+        """Return a copy of this Request"""
+        return self.replace()
+
+    def replace(self, *args, **kwargs):
+        """Create a new Request with the same attributes except for those
+        given new values.
+        """
+        for x in ['url', 'method', 'headers', 'body', 'cookies', 'meta', 'flags',
+                  'encoding', 'priority', 'dont_filter', 'callback', 'errback', 'cb_kwargs']:
+            kwargs.setdefault(x, getattr(self, x))
+        cls = kwargs.pop('cls', self.__class__)
+        return cls(*args, **kwargs)
