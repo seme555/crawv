@@ -74,3 +74,79 @@ class Response(object):
 
     def copy(self):
         """Return a copy of this Response"""
+        return self.replace()
+
+    def replace(self, *args, **kwargs):
+        """Create a new Response with the same attributes except for those
+        given new values.
+        """
+        for x in ['url', 'status', 'headers', 'body', 'request', 'flags', 'certificate']:
+            kwargs.setdefault(x, getattr(self, x))
+        cls = kwargs.pop('cls', self.__class__)
+        return cls(*args, **kwargs)
+
+    def urljoin(self, url: str) -> str:
+        """Join this Response's url with a possible relative url to form an
+        absolute interpretation of the latter."""
+        return urljoin(self.url, url)
+
+    @property
+    def text(self):
+        """For subclasses of TextResponse, this will return the body
+        as str
+        """
+        raise AttributeError("Response content isn't text")
+
+    def css(self, *a, **kw):
+        """Shortcut method implemented only by responses whose content
+        is text (subclasses of TextResponse).
+        """
+        # raise NotSupported("Response content isn't text")
+        raise NotImplementedError
+
+    def xpath(self, *a, **kw):
+        """Shortcut method implemented only by responses whose content
+        is text (subclasses of TextResponse).
+        """
+        # raise NotSupported("Response content isn't text")
+        raise NotImplementedError
+
+    def follow(self, url, callback=None, method='GET', formdata=None, headers=None, body=None,
+               cookies=None, meta=None, encoding='utf-8', priority=0,
+               dont_filter=False, errback=None, cb_kwargs=None, flags=None, **kwargs) -> Request:
+
+        url = self.urljoin(url)
+        method_request = Request
+        if method == "POST":
+            method_request = FormRequest
+            kwargs['formdata'] = formdata
+
+        return call_grace_instance(
+               method_request,
+               url=url,
+               callback=callback,
+               method=method,
+               headers=headers,
+               body=body,
+               cookies=cookies,
+               meta=meta,
+               encoding=encoding,
+               priority=priority,
+               dont_filter=dont_filter,
+               errback=errback,
+               cb_kwargs=cb_kwargs,
+               flags=flags,
+               **kwargs
+           )
+
+    def follow_all(self, urls, callback=None, method='GET', headers=None, body=None,
+                   cookies=None, meta=None, encoding='utf-8', priority=0,
+                   dont_filter=False, errback=None, cb_kwargs=None, flags=None) -> Generator:
+        if not hasattr(urls, '__iter__'):
+            raise TypeError("'urls' argument must be an iterable")
+        return (
+            self.follow(
+                url=url,
+                callback=callback,
+                method=method,
+                headers=headers,
