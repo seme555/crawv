@@ -74,3 +74,79 @@ class TextResponse(Response):
         benc = self.encoding
         if self._cached_ubody is None:
             charset = 'charset=%s' % benc
+            self._cached_ubody = html_to_unicode(charset, self.body)[1]
+        return self._cached_ubody
+
+    @property
+    async def json(self):
+        return await call_helper(self._response.json)
+
+    @memoizemethod_noargs
+    def _headers_encoding(self):
+        content_type = self.headers.get(b'Content-Type', b'')
+        return http_content_type_encoding(to_unicode(content_type))
+
+    def _body_inferred_encoding(self):
+        if self._cached_benc is None:
+            content_type = to_unicode(self.headers.get(b'Content-Type', b''))
+            benc, ubody = html_to_unicode(content_type, self.body,
+                                          auto_detect_fun=self._auto_detect_fun,
+                                          default_encoding=self._DEFAULT_ENCODING)
+            self._cached_benc = benc
+            self._cached_ubody = ubody
+        return self._cached_benc
+
+    def _auto_detect_fun(self, text):
+        for enc in (self._DEFAULT_ENCODING, 'utf-8', 'cp1252'):
+            try:
+                text.decode(enc)
+            except UnicodeError:
+                continue
+            return resolve_encoding(enc)
+
+    @memoizemethod_noargs
+    def _body_declared_encoding(self):
+        return html_body_declared_encoding(self.body)
+
+    @property
+    def selector(self):
+        if self._cached_selector is None:
+            text = self.text
+            self._cached_selector = Selector(text)
+        return self._cached_selector
+
+    def xpath(self, query, **kwargs):
+        return self.selector.xpath(query, **kwargs)
+
+    def css(self, query):
+        return self.selector.css(query)
+
+    def follow(self, url, callback=None, method='GET', headers=None, body=None,
+               cookies=None, meta=None, encoding=None, priority=0,
+               dont_filter=False, errback=None, cb_kwargs=None, flags=None, **kwargs):
+        if isinstance(url, parsel.Selector):
+            url = _url_from_selector(url)
+        elif isinstance(url, parsel.SelectorList):
+            raise ValueError("SelectorList is not supported")
+        encoding = self.encoding if encoding is None else encoding
+        return super(TextResponse, self).follow(
+            url=url,
+            callback=callback,
+            method=method,
+            headers=headers,
+            body=body,
+            cookies=cookies,
+            meta=meta,
+            encoding=encoding,
+            priority=priority,
+            dont_filter=dont_filter,
+            errback=errback,
+            cb_kwargs=cb_kwargs,
+            flags=flags,
+            **kwargs
+        )
+
+    def follow_all(self, urls=None, callback=None, method='GET', headers=None, body=None,
+                   cookies=None, meta=None, encoding=None, priority=0,
+                   dont_filter=False, errback=None, cb_kwargs=None, flags=None,
+                   css=None, xpath=None):
