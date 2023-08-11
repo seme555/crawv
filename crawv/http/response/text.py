@@ -150,3 +150,57 @@ class TextResponse(Response):
                    cookies=None, meta=None, encoding=None, priority=0,
                    dont_filter=False, errback=None, cb_kwargs=None, flags=None,
                    css=None, xpath=None):
+        arguments = [x for x in (urls, css, xpath) if x is not None]
+        if len(arguments) != 1:
+            raise ValueError(
+                "Please supply exactly one of the following arguments: urls, css, xpath"
+            )
+        if not urls:
+            if css:
+                urls = self.css(css)
+            if xpath:
+                urls = self.xpath(xpath)
+        if isinstance(urls, parsel.SelectorList):
+            selectors = urls
+            urls = []
+            for sel in selectors:
+                with suppress(_InvalidSelector):
+                    urls.append(_url_from_selector(sel))
+        return super(TextResponse, self).follow_all(
+            urls=urls,
+            callback=callback,
+            method=method,
+            headers=headers,
+            body=body,
+            cookies=cookies,
+            meta=meta,
+            encoding=encoding,
+            priority=priority,
+            dont_filter=dont_filter,
+            errback=errback,
+            cb_kwargs=cb_kwargs,
+            flags=flags,
+        )
+
+
+class _InvalidSelector(ValueError):
+    """
+    Raised when a URL cannot be obtained from a Selector
+    """
+
+
+def _url_from_selector(sel):
+    # type: (parsel.Selector) -> str
+    if isinstance(sel.root, str):
+        # e.g. ::attr(href) result
+        return strip_html5_whitespace(sel.root)
+    if not hasattr(sel.root, 'tag'):
+        raise _InvalidSelector("Unsupported selector: %s" % sel)
+    if sel.root.tag not in ('a', 'link'):
+        raise _InvalidSelector("Only <a> and <link> elements are supported; got <%s>" %
+                               sel.root.tag)
+    href = sel.root.get('href')
+    if href is None:
+        raise _InvalidSelector("<%s> element has no href attribute: %s" %
+                               (sel.root.tag, sel))
+    return strip_html5_whitespace(href)
