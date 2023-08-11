@@ -150,3 +150,15 @@ class Response(object):
                 callback=callback,
                 method=method,
                 headers=headers,
+                body=body,
+                cookies=cookies,
+                meta=meta,
+                encoding=encoding,
+                priority=priority,
+                dont_filter=dont_filter,
+                errback=errback,
+                cb_kwargs=cb_kwargs,
+                flags=flags,
+            )
+            for url in urls
+        )
