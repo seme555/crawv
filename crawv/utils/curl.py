@@ -74,3 +74,58 @@ def curl_to_request_kwargs(curl_command: str, ignore_unknown_options: bool = Tru
     if argv:
         msg = f'Unrecognized options: {", ".join(argv)}'
         if ignore_unknown_options:
+            warnings.warn(msg)
+        else:
+            raise ValueError(msg)
+
+    url = parsed_args.url
+
+    # curl automatically prepends 'http' if the scheme is missing, but Request
+    # needs the scheme to work
+    parsed_url = urlparse(url)
+    if not parsed_url.scheme:
+        url = 'http://' + url
+
+    method = parsed_args.method or 'GET'
+
+    result = {'method': method.upper(), 'url': url}
+
+    headers, cookies = _parse_headers_and_cookies(parsed_args)
+
+    if headers:
+        result['headers'] = headers
+    if cookies:
+        result['cookies'] = cookies
+    if parsed_args.data:
+        result['body'] = parsed_args.data
+        if not parsed_args.method:
+            # if the "data" is specified but the "method" is not specified,
+            # the default method is 'POST'
+            result['method'] = 'POST'
+
+    return result
+
+
+if __name__ == '__main__':
+    curl_str = """
+    curl 'https://quotes.toscrape.com/api/quotes?page=10' \
+  -H 'authority: quotes.toscrape.com' \
+  -H 'accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9' \
+  -H 'accept-language: zh-CN,zh;q=0.9,en;q=0.8' \
+  -H 'cache-control: no-cache' \
+  -H 'pragma: no-cache' \
+  -H 'referer: https://docs.scrapy.org/en/latest/topics/developer-tools.html?highlight=curl' \
+  -H 'sec-ch-ua: " Not A;Brand";v="99", "Chromium";v="102", "Google Chrome";v="102"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'sec-fetch-dest: document' \
+  -H 'sec-fetch-mode: navigate' \
+  -H 'sec-fetch-site: cross-site' \
+  -H 'sec-fetch-user: ?1' \
+  -H 'upgrade-insecure-requests: 1' \
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36' \
+  --compressed
+    """
+
+    res = curl_to_request_kwargs(curl_str)
+    print(res)
