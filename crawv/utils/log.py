@@ -74,3 +74,66 @@ class LogFormatter(object):
                       '{extra[type]}| ' \
                       '{message} '
 
+    @classmethod
+    def setter_log_handler(cls, log, callback=None):
+        assert callable(callback), 'callback must be a callable object'
+        log.add(callback, format=cls.kafka_formatter)
+
+    @classmethod
+    def get_logger(cls, log, name=None):
+        settings = get_project_settings()
+        log_config = set_log_config(cls.simple_formatter, settings)
+        config = log_config.pop('default', {})
+        if name:
+            config['extra']['log_name'] = name
+        log.configure(**config)
+        return log
+
+    @staticmethod
+    def format(spider, meta):
+        if hasattr(spider, 'logging_keys'):
+            logging_txt = []
+            for key in spider.logging_keys:
+                if meta.get(key, None) is not None:
+                    logging_txt.append(u'{0}:{1} '.format(key, meta[key]))
+            logging_txt.append('successfully')
+            return ' '.join(logging_txt)
+
+
+def logformatter_adapter(logkws):
+    if not {'level', 'msg', 'args'} <= set(logkws):
+        warnings.warn('Missing keys in LogFormatter method',
+                      CrawvDeprecationWarning)
+
+    if 'format' in logkws:
+        warnings.warn('`format` key in LogFormatter methods has been '
+                      'deprecated, use `msg` instead',
+                      CrawvDeprecationWarning)
+
+    level = logkws.get('level', 'INFO')
+    message = logkws.get('format', logkws.get('msg'))
+    args = logkws if not logkws.get('args') else logkws['args']
+
+    return level, message, args
+
+
+def std_log_crawv_info(settings):
+    from pprint import pprint, pformat
+
+    icon = """                          
+         (_)                           
+     __ _ _  ___  ___  ___ _ __  _   _ 
+    / _` | |/ _ \/ __|/ __| '_ \| | | |
+   | (_| | | (_) \__ \ (__| |_) | |_| |
+    \__,_|_|\___/|___/\___| .__/ \__, |
+                          | |     __/ |
+                          |_|    |___/ 
+    """
+    logger.info("{item}", **{'item': icon})
+    logger.info("crawv {version} started (bot: {bot})",
+                **{'version': crawv.__version__, 'bot': settings['BOT_NAME']})
+
+
+lof = LogFormatter
+
+logger = lof.get_logger(logger)
