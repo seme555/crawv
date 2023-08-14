@@ -74,3 +74,25 @@ def arglist_to_dict(arglist):
 
 
 def inside_project():
+    crawv_module = os.environ.get('CRAWV_SETTINGS_MODULE')
+    if crawv_module is not None:
+        try:
+            import_module(crawv_module)
+        except ImportError as exc:
+            warnings.warn(f"Cannot import crawv settings module {crawv_module}: {exc}")
+        else:
+            return True
+    return bool(closest_crawv_cfg())
+
+
+def closest_crawv_cfg(path='.', prevpath=None):
+    """Return the path to the closest crawv.cfg file by traversing the current
+    directory and its parents
+    """
+    if path == prevpath:
+        return ''
+    path = os.path.abspath(path)
+    cfgfile = os.path.join(path, 'crawv.cfg')
+    if os.path.exists(cfgfile):
+        return cfgfile
+    return closest_crawv_cfg(os.path.dirname(path), path)
