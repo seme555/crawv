@@ -150,3 +150,79 @@ class BaseSettings(MutableMapping):
         """
         Get a setting value as a float.
 
+        :param name: the setting name
+        :type name: str
+
+        :param default: the value to return if no setting is found
+        :type default: object
+        """
+        return float(self.get(name, default))
+
+    def getlist(self, name, default=None):
+        """
+        Get a setting value as a list. If the setting original type is a list, a
+        copy of it will be returned. If it's a string it will be split by ",".
+
+        For example, settings populated through environment variables set to
+        ``'one,two'`` will return a list ['one', 'two'] when using this method.
+
+        :param name: the setting name
+        :type name: str
+
+        :param default: the value to return if no setting is found
+        :type default: object
+        """
+        value = self.get(name, default or [])
+        if isinstance(value, str):
+            value = value.split(',')
+        return list(value)
+
+    def getdict(self, name, default=None):
+        """
+        Get a setting value as a dictionary. If the setting original type is a
+        dictionary, a copy of it will be returned. If it is a string it will be
+        evaluated as a JSON dictionary. In the case that it is a
+        :class:`~crawv.settings.BaseSettings` instance itself, it will be
+        converted to a dictionary, containing all its current settings values
+        as they would be returned by :meth:`~crawv.settings.BaseSettings.get`,
+        and losing all information about priority and mutability.
+
+        :param name: the setting name
+        :type name: str
+
+        :param default: the value to return if no setting is found
+        :type default: object
+        """
+        value = self.get(name, default or {})
+        if isinstance(value, str):
+            value = json.loads(value)
+        return dict(value)
+
+    def getwithbase(self, name):
+        """Get a composition of a dictionary-like setting and its `_BASE`
+        counterpart.
+
+        :param name: name of the dictionary-like setting
+        :type name: str
+        """
+        compbs = BaseSettings()
+        compbs.update(self[name + '_BASE'])
+        compbs.update(self[name])
+        return compbs
+
+    def getpriority(self, name):
+        """
+        Return the current numerical priority value of a setting, or ``None`` if
+        the given ``name`` does not exist.
+
+        :param name: the setting name
+        :type name: str
+        """
+        if name not in self:
+            return None
+        return self.attributes[name].priority
+
+    def maxpriority(self):
+        """
+        Return the numerical value of the highest priority present throughout
+        all settings, or the numerical value for ``default`` from
