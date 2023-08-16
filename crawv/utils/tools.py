@@ -150,3 +150,79 @@ def to_unicode(text, encoding=None, errors='strict'):
 
 
 def to_bytes(text, encoding=None, errors='strict'):
+    """Return the binary representation of ``text``. If ``text``
+    is already a bytes object, return it as-is."""
+    if isinstance(text, bytes):
+        return text
+    if not isinstance(text, str):
+        raise TypeError('to_bytes must receive a str or bytes '
+                        'object, got %s' % type(text).__name__)
+    if encoding is None:
+        encoding = 'utf-8'
+    return text.encode(encoding, errors)
+
+
+async def call_helper(f, *args, **kwargs):
+    if asyncio.iscoroutinefunction(f):
+        return await f(*args, **kwargs)
+    return f(*args, **kwargs)
+
+
+async def async_generator_wrapper(wrapped):
+    """å°†ä¼ å…¥çš„å¯¹è±¡å˜æˆAsyncGeneratorTypeç±»åž‹"""
+    if isinstance(wrapped, AsyncGeneratorType):
+        return wrapped
+
+    elif isinstance(wrapped, CoroutineType):
+        async def anonymous(c):
+            yield await c
+        return anonymous(wrapped)
+
+    elif isinstance(wrapped, GeneratorType):
+        async def anonymous(c):
+            for r in c:
+                yield r
+        return anonymous(wrapped)
+
+    else:
+        async def anonymous(c):
+            yield c
+        return anonymous(wrapped)
+
+
+def closest_crawv_cfg(path='.', prevpath=None):
+    """Return the path to the closest crawv.cfg file by traversing the current
+    directory and its parents
+    """
+    if path == prevpath:
+        return ''
+    path = os.path.abspath(path)
+    cfgfile = os.path.join(path, 'crawv.cfg')
+    if os.path.exists(cfgfile):
+        return cfgfile
+    return closest_crawv_cfg(os.path.dirname(path), path)
+
+
+def get_sources(use_closest=True):
+    xdg_config_home = os.environ.get('XDG_CONFIG_HOME') or os.path.expanduser('~/.config')
+    sources = [
+        '/etc/crawv.cfg',
+        r'c:\crawv\crawv.cfg',
+        xdg_config_home + '/crawv.cfg',
+        os.path.expanduser('~/.crawv.cfg'),
+    ]
+    if use_closest:
+        sources.append(closest_crawv_cfg())
+    return sources
+
+
+def get_config(use_closest=True):
+    """Get Crawv config file as a ConfigParser"""
+    sources = get_sources(use_closest)
+    cfg = ConfigParser()
+    cfg.read(sources)
+    return cfg
+
+
+def init_env(project='default', set_syspath=True):
+    """Initialize environment to use command-line tool from inside a project
