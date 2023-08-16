@@ -226,3 +226,79 @@ def get_config(use_closest=True):
 
 def init_env(project='default', set_syspath=True):
     """Initialize environment to use command-line tool from inside a project
+    dir. This sets the Crawv settings module and modifies the Python path to
+    be able to locate the project module.
+    """
+    cfg = get_config()
+    if cfg.has_option('settings', project):
+        os.environ['SETTINGS_MODULE'] = cfg.get('settings', project)
+    if cfg.has_option('package_env', "path"):
+        path = cfg.get('package_env', 'path')
+        sys.path.append(path)
+    closest = closest_crawv_cfg()
+    if closest:
+        projdir = os.path.dirname(closest)
+        if set_syspath and projdir not in sys.path:
+            sys.path.append(projdir)
+
+
+def get_project_settings():
+
+    ENVVAR = 'SETTINGS_MODULE'
+
+    if ENVVAR not in os.environ:
+        project = os.environ.get('CRAWV_PROJECT', 'default')
+        init_env(project)
+    settings = Settings()
+    settings_module_path = os.environ.get(ENVVAR)
+    if settings_module_path:
+        settings.setmodule(settings_module_path, priority='project')
+
+    crawv_envvars = {k[8:]: v for k, v in os.environ.items() if
+                      k.startswith('CRAWV_')}
+    valid_envvars = {
+        'CHECK',
+        'PROJECT',
+        'PYTHON_SHELL',
+        'SETTINGS_MODULE',
+    }
+    setting_envvars = {k for k in crawv_envvars if k not in valid_envvars}
+    if setting_envvars:
+        setting_envvar_list = ', '.join(sorted(setting_envvars))
+        warnings.warn(
+            'Use of environment variables prefixed with CRAWV_ to override '
+            'settings is deprecated. The following environment variables are '
+            f'currently defined: {setting_envvar_list}',
+            CrawvDeprecationWarning
+        )
+    settings.setdict(crawv_envvars, priority='project')
+    settings['DI_CONFIG']['scheduler'] = settings['SCHEDULER']
+    settings['DI_CREATE_CLS']['downloader_handler'] = settings['DOWNLOAD_HANDLER']
+    return settings
+
+
+def singleton(cls):
+    _instance = {}
+
+    def _singleton(*args, **kwargs):
+        if cls not in _instance:
+            _instance[cls] = cls(*args, **kwargs)
+        return _instance[cls]
+
+    return _singleton
+
+
+def exec_js_func(js_file_path, func_name, func_params=None, cwd_path=None, cmd_path='node'):
+    """
+    è°ƒç”¨nodeæ‰§è¡Œjsæ–‡ä»¶
+    :param js_file_path: jsæ–‡ä»¶è·¯å¾„
+    :param func_name: è¦è°ƒç”¨çš„jsæ–‡ä»¶å†…çš„å‡½æ•°åç§°
+    :param func_params: funcçš„å‚æ•°
+    :param cwd_path: node_modulesæ–‡ä»¶æ‰€åœ¨è·¯å¾„ï¼Œå¦‚æžœä¸æŒ‡å®šå°†ä½¿ç”¨å…¨å±€çš„node_modules
+    :param cmd_path: nodeçš„ä½ç½®ï¼Œ ä¾‹å¦‚ï¼šr'D:\\path\to\node.exe'
+    :return: func_nameå‡½æ•°çš„æ‰§è¡Œç»“æžœ
+    """
+    import execjs
+
+    if func_params is None:
+        func_params = []
