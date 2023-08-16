@@ -302,3 +302,33 @@ def exec_js_func(js_file_path, func_name, func_params=None, cwd_path=None, cmd_p
 
     if func_params is None:
         func_params = []
+    name = "MyNode"
+    execjs.register(name, execjs._external_runtime.ExternalRuntime(
+        name="Node.js (V8)",
+        command=[cmd_path],
+        encoding='UTF-8',
+        runner_source=execjs._runner_sources.Node
+    ))
+    with open(js_file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    js = ''.join(lines)
+    js_context = execjs.get(name).compile(js, cwd=cwd_path)
+    return js_context.call(func_name, *func_params)
+
+
+def obsolete_setter(setter, attrname):
+    def newsetter(self, value):
+        c = self.__class__.__name__
+        msg = "%s.%s is not modifiable, use %s.replace() instead" % (c, attrname, c)
+        raise AttributeError(msg)
+    return newsetter
+
+
+def monkey_patch_json():
+    json.__name__ = 'ujson'
+    json.dumps = ujson.dumps
+    json.loads = ujson.loads
+
+
+def install_patch_method():
+    monkey_patch_json()
