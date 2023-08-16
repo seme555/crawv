@@ -226,3 +226,79 @@ class BaseSettings(MutableMapping):
         """
         Return the numerical value of the highest priority present throughout
         all settings, or the numerical value for ``default`` from
+        :attr:`~crawv.settings.SETTINGS_PRIORITIES` if there are no settings
+        stored.
+        """
+        if len(self) > 0:
+            return max(self.getpriority(name) for name in self)
+        else:
+            return get_settings_priority('default')
+
+    def __setitem__(self, name, value):
+        self.set(name, value)
+
+    def set(self, name, value, priority='project'):
+        """
+        Store a key/value attribute with a given priority.
+
+        Settings should be populated *before* configuring the Crawler object
+        (through the :meth:`~crawv.crawler.Crawler.configure` method),
+        otherwise they won't have any effect.
+
+        :param name: the setting name
+        :type name: str
+
+        :param value: the value to associate with the setting
+        :type value: object
+
+        :param priority: the priority of the setting. Should be a key of
+            :attr:`~crawv.settings.SETTINGS_PRIORITIES` or an integer
+        :type priority: str or int
+        """
+        self._assert_mutability()
+        priority = get_settings_priority(priority)
+        if name not in self:
+            if isinstance(value, SettingsAttribute):
+                self.attributes[name] = value
+            else:
+                self.attributes[name] = SettingsAttribute(value, priority)
+        else:
+            self.attributes[name].set(value, priority)
+
+    def setdict(self, values, priority='project'):
+        self.update(values, priority)
+
+    def setmodule(self, module, priority='project'):
+        """
+        Store settings from a module with a given priority.
+
+        This is a helper function that calls
+        :meth:`~crawv.settings.BaseSettings.set` for every globally declared
+        uppercase variable of ``module`` with the provided ``priority``.
+
+        :param module: the module or the path of the module
+        :type module: types.ModuleType or str
+
+        :param priority: the priority of the settings. Should be a key of
+            :attr:`~crawv.settings.SETTINGS_PRIORITIES` or an integer
+        :type priority: str or int
+        """
+        self._assert_mutability()
+        if isinstance(module, str):
+            module = import_module(module)
+        for key in dir(module):
+            if key.isupper():
+                self.set(key, getattr(module, key), priority)
+
+    def update(self, values, priority='project'):
+        """
+        Store key/value pairs with a given priority.
+
+        This is a helper function that calls
+        :meth:`~crawv.settings.BaseSettings.set` for every item of ``values``
+        with the provided ``priority``.
+
+        If ``values`` is a string, it is assumed to be JSON-encoded and parsed
+        into a dict with ``json.loads()`` first. If it is a
+        :class:`~crawv.settings.BaseSettings` instance, the per-key priorities
+        will be used and the ``priority`` parameter ignored. This allows
