@@ -302,3 +302,79 @@ class BaseSettings(MutableMapping):
         into a dict with ``json.loads()`` first. If it is a
         :class:`~crawv.settings.BaseSettings` instance, the per-key priorities
         will be used and the ``priority`` parameter ignored. This allows
+        inserting/updating settings with different priorities with a single
+        command.
+
+        :param values: the settings names and values
+        :type values: dict or string or :class:`~crawv.settings.BaseSettings`
+
+        :param priority: the priority of the settings. Should be a key of
+            :attr:`~crawv.settings.SETTINGS_PRIORITIES` or an integer
+        :type priority: str or int
+        """
+        self._assert_mutability()
+        if isinstance(values, str):
+            values = json.loads(values)
+        if values is not None:
+            if isinstance(values, BaseSettings):
+                for name, value in values.items():
+                    self.set(name, value, values.getpriority(name))
+            else:
+                for name, value in values.items():
+                    self.set(name, value, priority)
+
+    def delete(self, name, priority='project'):
+        self._assert_mutability()
+        priority = get_settings_priority(priority)
+        if priority >= self.getpriority(name):
+            del self.attributes[name]
+
+    def __delitem__(self, name):
+        self._assert_mutability()
+        del self.attributes[name]
+
+    def _assert_mutability(self):
+        if self.frozen:
+            raise TypeError("Trying to modify an immutable Settings object")
+
+    def copy(self):
+        """
+        Make a deep copy of current settings.
+
+        This method returns a new instance of the :class:`Settings` class,
+        populated with the same values and their priorities.
+
+        Modifications to the new object won't be reflected on the original
+        settings.
+        """
+        return copy.deepcopy(self)
+
+    def freeze(self):
+        """
+        Disable further changes to the current settings.
+
+        After calling this method, the present state of the settings will become
+        immutable. Trying to change values through the :meth:`~set` method and
+        its variants won't be possible and will be alerted.
+        """
+        self.frozen = True
+
+    def frozencopy(self):
+        """
+        Return an immutable copy of the current settings.
+
+        Alias for a :meth:`~freeze` call in the object returned by :meth:`copy`.
+        """
+        copy = self.copy()
+        copy.freeze()
+        return copy
+
+    def __iter__(self):
+        return iter(self.attributes)
+
+    def __len__(self):
+        return len(self.attributes)
+
+    def _to_dict(self):
+        return {k: (v._to_dict() if isinstance(v, BaseSettings) else v)
+                for k, v in self.items()}
