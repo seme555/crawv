@@ -74,3 +74,45 @@ DI_CREATE_CLS = {
     'scraper': 'crawv.core.scraper.Scraper',
     "downloader": "crawv.core.downloader.Downloader",
 }
+
+# message config
+# RABBITMQ_TCP = {
+#     "host": "172.16.8.147",
+#     # "port": 5672,
+#     # "username": "admin",
+#     # "password": "admin",
+#     # "key": "message:queue",
+#     # "max_priority": 100
+# }
+QUEUE_KEY = '%(spider)s:requests'
+
+# REDIS_TCP = {
+#     "host": "172.16.7.172",
+#     "port": 6379,
+#     "password": "123456",
+#     "db": 15
+# }
+# REDIS_URI = "redis://:123456@172.16.7.172:6379/1"
+
+
+EXTENSIONS_BASE = {
+    'crawv.libs.extensions.corestats.CoreStats': 0,
+    'crawv.libs.extensions.logstats.LogStats': 0,
+
+}
+
+DOWNLOADER_MIDDLEWARES_BASE = {
+    # Engine side
+    'crawv.middleware.adaptive_concurrency.AdaptiveConcurrencyMiddleware': 500,
+    'crawv.libs.downloadermiddlewares.stats.DownloaderStats': 850,
+    # Downloader side
+}
+DOWNLOADER_STATS = True
+
+LOGSTATS_INTERVAL = 60.0
+STATS_CLASS = 'crawv.libs.statscollectors.MemoryStatsCollector'
+STATS_DUMP = True
+SCRAPER_SLOT_MAX_ACTIVE_SIZE = 5000000
+
+TLS_CIPHERS = False
+
