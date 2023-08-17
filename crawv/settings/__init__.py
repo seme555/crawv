@@ -378,3 +378,79 @@ class BaseSettings(MutableMapping):
     def _to_dict(self):
         return {k: (v._to_dict() if isinstance(v, BaseSettings) else v)
                 for k, v in self.items()}
+
+    def copy_to_dict(self):
+        """
+        Make a copy of current settings and convert to a dict.
+
+        This method returns a new dict populated with the same values
+        and their priorities as the current settings.
+
+        Modifications to the returned dict won't be reflected on the original
+        settings.
+
+        This method can be useful for example for printing settings
+        in Crawv shell.
+        """
+        settings = self.copy()
+        return settings._to_dict()
+
+    def _repr_pretty_(self, p, cycle):
+        if cycle:
+            p.text(repr(self))
+        else:
+            p.text(pformat(self.copy_to_dict()))
+
+
+class _DictProxy(MutableMapping):
+
+    def __init__(self, settings, priority):
+        self.o = {}
+        self.settings = settings
+        self.priority = priority
+
+    def __len__(self):
+        return len(self.o)
+
+    def __getitem__(self, k):
+        return self.o[k]
+
+    def __setitem__(self, k, v):
+        self.settings.set(k, v, priority=self.priority)
+        self.o[k] = v
+
+    def __delitem__(self, k):
+        del self.o[k]
+
+    def __iter__(self, k, v):
+        return iter(self.o)
+
+
+class Settings(BaseSettings):
+    """
+    This object stores Crawv settings for the configuration of internal
+    components, and can be used for any further customization.
+
+    It is a direct subclass and supports all methods of
+    :class:`~crawv.settings.BaseSettings`. Additionally, after instantiation
+    of this class, the new object will have the global default settings
+    described on :ref:`topics-settings-ref` already populated.
+    """
+
+    def __init__(self, values=None, priority='project'):
+        # Do not pass kwarg values here. We don't want to promote user-defined
+        # dicts, and we want to update, not replace, default dicts with the
+        # values given by the user
+        super().__init__()
+        self.setmodule(default_settings, 'default')
+        # Promote default dictionaries to BaseSettings instances for per-key
+        # priorities
+        for name, val in self.items():
+            if isinstance(val, dict):
+                self.set(name, BaseSettings(val, 'default'), 'default')
+        self.update(values, priority)
+
+
+def iter_default_settings():
+    """Return the default settings as an iterator of (name, value) tuples"""
+    for name in dir(default_settings):
