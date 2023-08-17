@@ -74,3 +74,12 @@ class AdaptiveConcurrencyMiddleware:
         # Apply adjustment with limits
         new_concurrency = int(self.current_concurrency * adjustment_factor)
         new_concurrency = max(self.min_concurrency, min(self.max_concurrency, new_concurrency))
+        
+        # Only update if there's a significant change
+        if new_concurrency != self.current_concurrency:
+            self.current_concurrency = new_concurrency
+            self.crawler.settings.set('CONCURRENT_REQUESTS', new_concurrency)
+            self.logger.info(
+                f"Adjusted concurrency to {new_concurrency} (avg response time: {avg_response_time:.2f}s, "
+                f"target: {self.target_response_time:.2f}s)"
+            )
