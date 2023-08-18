@@ -74,3 +74,34 @@ class MiddlewareManager:
 
     @staticmethod
     async def process_parallel(callbacks, input_, *a, **kw):
+        for callback in callbacks:
+            if iscoroutinefunction(callback):
+                await callback(input_, *a, **kw)
+            else:
+                callback(input_, *a, **kw)
+
+    @staticmethod
+    async def process_chain(callbacks, input_, *a, **kw):
+        for callback in callbacks:
+            if iscoroutinefunction(callback):
+                input_result = await callback(input_, *a, **kw)
+            else:
+                input_result = callback(input_, *a, **kw)
+            if input_result is not None:
+                input_ = input_result
+        return input_
+
+    @staticmethod
+    async def process_chain_both(callbacks, errbacks, input_, *a, **kw):
+        for cb, eb in zip(callbacks, errbacks):
+            try:
+                if iscoroutinefunction(cb):
+                    input_ = await cb(input_, *a, **kw)
+                else:
+                    input_ = cb(input_, *a, **kw)
+            except(Exception, BaseException) as e:
+                if iscoroutinefunction(cb):
+                    input_ = await eb(input_, *a, **kw)
+                else:
+                    input_ = eb(input_, *a, **kw)
+            return input_
