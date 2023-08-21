@@ -74,3 +74,67 @@ class Downloader(object):
     def from_crawler(cls, crawler):
         return cls(crawler)
 
+    async def open(self, spider, engine):
+        conc = self.ip_concurrency if self.ip_concurrency else self.domain_concurrency
+        self.slot = Slot(conc, self.randomize_delay, self.delay)
+        self.engine = engine
+        self.process_queue_task = asyncio.create_task(self._process_queue(spider, self.slot))
+
+    async def fetch(self, request):
+        self.active.add(request)
+        self.slot.active.add(request)
+        self.slot.queue.append(request)
+
+    async def _process_queue(self, spider, slot):
+        while True:
+            await asyncio.sleep(0.1)
+            while slot.queue and slot.free_transfer_slots() > 0:
+                request = slot.queue.popleft()
+                asyncio.create_task(self._download(slot, request, spider))
+                slot.transferring.add(request)
+                slot.active.remove(request)
+                self.active.remove(request)
+                if slot.download_delay():
+                    await asyncio.sleep(slot.download_delay())
+
+    async def _download(self, slot, request, spider):
+        try:
+            response = None
+            response = await self.middleware.process_request(spider, request)
+            process_request_method = getattr(spider, "process_request", None)
+            if process_request_method:
+                response = await self.call_helper(process_request_method, request)
+            if response is None or isinstance(response, self.di.get('request')):
+                request = response or request
+                response = await self.handlers.download_request(request, spider)
+        except (Exception, BaseException, asyncio.TimeoutError) as exc:
+            response = await self.middleware.process_exception(spider, request, exc)
+            process_exception_method = getattr(spider, "process_exception", None)
+            if process_exception_method:
+                response = await self.call_helper(process_exception_method, request, exc)
+        else:
+            try:
+                response = await self.middleware.process_response(spider, request, response)
+                process_response_method = getattr(spider, "process_response", None)
+                if process_response_method:
+                    response = await self.call_helper(process_response_method, request, response)
+            except (Exception, BaseException) as exc:
+                response = exc
+        finally:
+            slot.transferring.discard(request)
+            if isinstance(response, self.di.get('response')):
+                response.request = request
+            await self.engine._handle_downloader_output(response, request, spider)
+
+    async def close(self):
+        try:
+            if self.slot is not None:
+                self.slot.close()
+            await self.handlers.close()
+            if self.process_queue_task:
+                self.process_queue_task.cancel()
+        except (asyncio.CancelledError, Exception, BaseException) as exc:
+            pass
+
+    def needs_backout(self):
+        return len(self.active) >= self.total_concurrency
