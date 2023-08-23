@@ -74,3 +74,8 @@ class CurlCffiDownloadHandler(object):
             status=response.status_code,
             headers=response.headers,
             body=content,
+            cookies=response.cookies,
+            _response=response)
+
+    async def close(self):
+        await asyncio.sleep(0.1)
