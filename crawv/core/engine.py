@@ -150,3 +150,79 @@ class ExecutionEngine(object):
         self.spider = spider
         await self.call_helper(self.scheduler.open, start_requests)
         await self.call_helper(self.downloader.open, spider, self)
+        await self.call_helper(self.scraper.open_spider, spider)
+        await self.call_helper(self.crawler.stats.open_spider, spider)
+        await self.signals.send_catch_log_coroutine(signals.spider_opened, spider=spider)
+        await self.start_spider_request(spider)
+        if self.slot is None:
+            self.logger.warning("Spider ({name}) to running not found task! please check task is be generated.",
+                                **{"name": spider.name})
+            return
+        self._heart_beat = asyncio.create_task(self.heart_beat(5, spider, self.slot))
+        self._task_beat = asyncio.create_task(self.task_beat())
+
+    async def _close_all_spiders(self):
+        dfds = [self.close_spider(s, reason='shutdown') for s in self.open_spiders]
+        await asyncio.gather(*dfds)
+
+    async def close_spider(self, spider, reason='cancelled'):
+        """Close (cancel) spider and clear all its outstanding requests"""
+        slot = self.slot
+        if slot.closing:
+            return slot.closing
+
+        self.logger.info("Closing spider({name}) ({reason})",
+                         **{'reason': reason, 'name': spider.name},
+                         extra={'spider': spider})
+
+        await slot.close()
+
+        async def close_handler(callback, *args, errmsg='', **kwargs):
+            try:
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(*args, **kwargs)
+                else:
+                    callback(*args, **kwargs)
+            except (Exception, BaseException) as e:
+                self.logger.error(
+                    errmsg + ': {exc_info}',
+                    exc_info=e,
+                )
+
+        await close_handler(self.downloader.close, errmsg='Downloader close failure')
+
+        await close_handler(self.scraper.close_spider, spider, errmsg='Scraper close failure')
+
+        await close_handler(slot.scheduler.close, slot, errmsg='Scheduler close failure')
+
+        await close_handler(self.signals.send_catch_log_coroutine, signal=signals.spider_closed, spider=spider,
+                            reason=reason, errmsg='Error while sending spider_close signal')
+
+        await close_handler(self.crawler.stats.close_spider, spider, reason=reason, errmsg='Stats close failure')
+
+        self.logger.info("Spider({name}) closed ({reason})", **
+                         {'reason': reason, "name": spider.name}, extra={'spider': spider})
+
+        await self._spider_closed_callback()
+        if self._heart_beat:
+            self._heart_beat.cancel()
+        if self._task_beat:
+            self._task_beat.cancel()
+
+    async def _spider_idle(self, spider):
+        res = await self.signals.send_catch_log(signals.spider_idle, spider=spider, dont_log=self.di.get("exceptions").DontCloseSpider)
+        if any(isinstance(x, self.di.get("exceptions").DontCloseSpider) for _, x in res):
+            return
+        if await self.spider_is_idle(spider):
+            await self.close_spider(spider, reason='finished')
+
+    async def heart_beat(self, delay, spider, slot):
+        # Initialize GC counter and frequency from settings
+        gc_counter = 0
+        gc_frequency = self.settings.getint('GC_FREQUENCY', 10)  # Default: every 10 heartbeats
+        gc_enabled = self.settings.getbool('GC_ENABLED', True)   # Default: enabled
+
+        while True:
+            await asyncio.sleep(delay)
+            if self.running and await self.spider_is_idle(spider) and slot.close_if_idle:
+                await self._spider_idle(spider)
