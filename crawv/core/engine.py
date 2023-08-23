@@ -74,3 +74,79 @@ class ExecutionEngine(object):
                 self.logger.error('Error while obtaining start requests',
                                     exc_info=True, extra={'spider': spider})
             else:
+                await self.crawl(request, spider)
+
+    def _needs_backout(self) -> bool:
+        return (
+            not self.running
+            or self.slot.closing
+            or self.downloader.needs_backout()
+            or self.scraper.slot.needs_backout()
+        )
+
+    async def _handle_downloader_output(self, result, request, spider):
+        try:
+            if isinstance(result, self.di.get('request')):
+                await self.crawl(result, spider)
+                return
+            if isinstance(result, self.di.get('response')):
+                result.request = request
+                logkws = self.logformatter.crawled(request, result, spider)
+                level, message, kwargs = self.di.get("log").logformatter_adapter(logkws)
+                if logkws is not None:
+                    self.logger.log(level, message, **kwargs)
+                await self.signals.send_catch_log(signals.response_received,
+                                                  response=result, request=request, spider=spider)
+        except Exception as e:
+            self.logger.error(f"enqueue_scrape: {traceback.format_exc()}")
+        finally:
+            self.slot.remove_request(request)
+        await self.scraper.enqueue_scrape(result, request)
+
+    async def spider_is_idle(self, spider):
+        if self.scraper.slot.is_idle():
+            # scraper is not idle
+            return False
+
+        if self.downloader.active:
+            # downloader has pending requests
+            return False
+
+        if self.slot.start_requests is not None:
+            # not all start requests are handled
+            return False
+
+        if self.slot.inprogress:
+            # not all start requests are handled
+            return False
+
+        if await self.call_helper(self.slot.scheduler.has_pending_requests):
+            # scheduler has pending requests
+            return False
+
+        return True
+
+    @property
+    def open_spiders(self):
+        return (self.spider,) if self.spider else set()
+
+    def has_capacity(self):
+        return not bool(self.slot)
+
+    async def crawl(self, request, spider):  # å°†ç½‘å€ è¯·æ±‚åŠ å…¥é˜Ÿåˆ—
+        if spider not in self.open_spiders:
+            raise RuntimeError("Spider %r not opened when crawling: %s" % (spider.name, request))
+
+        await self.signals.send_catch_log(signals.request_scheduled, request=request, spider=spider)
+        if not await self.call_helper(self.slot.scheduler.enqueue_request, request):
+            await self.signals.send_catch_log(signals.request_dropped, request=request, spider=spider)
+
+    async def open_spider(self, spider, start_requests=None, close_if_idle=True):
+        if not self.has_capacity():
+            raise RuntimeError("No free spider slot when opening %r" % spider.name)
+        self.logger.info("Spider opened({name})", **{"name": spider.name}, extra={'spider': spider})
+
+        self.slot = Slot(start_requests, close_if_idle, self.scheduler, self.crawler)
+        self.spider = spider
+        await self.call_helper(self.scheduler.open, start_requests)
+        await self.call_helper(self.downloader.open, spider, self)
