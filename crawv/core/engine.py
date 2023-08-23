@@ -226,3 +226,49 @@ class ExecutionEngine(object):
             await asyncio.sleep(delay)
             if self.running and await self.spider_is_idle(spider) and slot.close_if_idle:
                 await self._spider_idle(spider)
+
+            # Log statistics
+            co = '<logstats: %(spname)s> pid: %(pid)s, transferring: %(transfer)s, queue: %(queue)s, active: %(active)s, ingress: %(ingress)s, scraper-active: %(sactive)s, scraper-queue: %(squeue)s, scraper-size: %(size)s' % {
+                'spname': spider.name,
+                'pid': os.getpid(),
+                'transfer': len(self.downloader.slot.transferring),
+                'queue': len(self.downloader.slot.queue),
+                'active': len(self.downloader.active),
+                'ingress': len(self.slot.inprogress),
+                'sactive': len(self.scraper.slot.active),
+                'squeue': len(self.scraper.slot.queue),
+                'size': self.scraper.slot.active_size,
+            }
+            self.logger.debug(co)
+
+            # Run garbage collection periodically if enabled
+            if gc_enabled:
+                gc_counter += 1
+                if gc_counter >= gc_frequency:
+                    try:
+                        gc.collect()
+                        gc_counter = 0
+                        self.logger.debug(f'Garbage collection performed')
+                    except Exception as e:
+                        self.logger.warning(f'Garbage collection failed: {str(e)}')
+
+
+    async def task_beat(self):
+        # Get task beat settings
+        active_sleep = self.settings.getfloat('TASK_BEAT_ACTIVE_SLEEP', 0.2)  # Sleep when active
+        idle_sleep = self.settings.getfloat('TASK_BEAT_IDLE_SLEEP', 1.0)      # Sleep when idle
+        batch_size = self.settings.getint('TASK_BEAT_BATCH_SIZE', 100)        # Max requests per batch
+
+        while True:
+            if not self._needs_backout():
+                # Process a batch of requests
+                requests = await self.slot.scheduler.async_next_request(count=batch_size)
+                if requests:
+                    for request in requests:
+                        self.slot.add_request(request)
+                        await self.downloader.fetch(request)
+                    await asyncio.sleep(active_sleep)  # Short sleep when active
+                else:
+                    await asyncio.sleep(idle_sleep)    # Longer sleep when no requests
+            else:
+                await asyncio.sleep(idle_sleep)        # Longer sleep when backout needed
