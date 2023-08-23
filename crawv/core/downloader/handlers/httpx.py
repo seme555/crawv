@@ -74,3 +74,7 @@ class HttpxDownloadHandler(object):
 
         except Exception as e:
             self.logger.error(f"Unexpected error when downloading {request.url}: {str(e)}")
+            raise self.di.get("exceptions").DownloadError(f"Unexpected error: {str(e)}")
+
+    async def close(self):
+        await asyncio.sleep(0.1)
