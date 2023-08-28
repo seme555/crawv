@@ -74,3 +74,44 @@ def request_from_dict(d, spider=None):
             _json = json.loads(d['json'])
 
     return call_grace_instance(
+            request_cls,
+            url=to_unicode(d['url']),
+            callback=cb,
+            errback=eb,
+            method=d.get('method', 'GET'),
+            headers=Headers(d.get('headers', {})),
+            body=_body,
+            json=_json,
+            cookies=d.get('cookies'),
+            meta=d.get('meta'),
+            encoding=d.get('_encoding', 'utf-8'),
+            priority=d.get('priority', 0),
+            dont_filter=d.get('dont_filter', True),
+            flags=d.get('flags'),
+            cb_kwargs=d.get('cb_kwargs'),
+    )
+
+
+def _find_method(obj, func):
+    # Only instance methods contain ``__func__``
+    if obj and hasattr(func, '__func__'):
+        members = inspect.getmembers(obj, predicate=inspect.ismethod)
+        for name, obj_func in members:
+            # We need to use __func__ to access the original
+            # function object because instance method objects
+            # are generated each time attribute is retrieved from
+            # instance.
+            #
+            # Reference: The standard type hierarchy
+            # https://docs.python.org/3/reference/datamodel.html
+            if obj_func.__func__ is func.__func__:
+                return name
+    raise ValueError(f"Function {func} is not an instance method in: {obj}")
+
+
+def _get_method(obj, name):
+    name = str(name)
+    try:
+        return getattr(obj, name)
+    except AttributeError:
+        raise ValueError(f"Method {name!r} not found in: {obj}")
