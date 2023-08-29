@@ -74,3 +74,39 @@ class RabbitMq:
             )
             channel = connection.channel()
             channel.queue_declare(
+                queue=self.kwargs['key'],
+                arguments={"x-max-priority": self.kwargs['max_priority']}
+            )
+            self.__mq_instance, self.__mq_connection_instance = channel, connection
+        return self.__mq_instance
+
+    def close(self):
+        if self.__mq_instance:
+            self.__mq_instance.close()
+            self.__mq_connection_instance.close()
+
+
+def priority_queue(key: str, mq: dict) -> PriorityQueue:
+    """
+    # unit test example
+    def run():
+        queue = rabbitmq_client('message:queue')
+        for i in range(5):
+            queue.push({"url": f"https://www.baidu.com/?kw={i}", "task_id": '123'})
+        while 1:
+            method, msg = queue.pop()
+            print(msg)
+            if not msg:
+                break
+            time.sleep(1)
+            if method:
+                queue.finish(method)
+
+    run()
+
+    """
+    server = RabbitMq(**mq).get_channel
+    return PriorityQueue(server=server, key=key)
+
+
+spider_priority_queue = priority_queue
