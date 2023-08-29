@@ -74,3 +74,26 @@ async def aio_priority_queue(key: str, redis_tcp, spider) -> PriorityQueue:
     """
     # unit test example
     async def run():
+        REDIS_TCP = {
+                    "host": "172.16.7.172",
+                    "port": 6379,
+                    "password": "123456",
+                    "db": 15
+                }
+        queue = await aio_priority_queue('message:queue', REDIS_TCP)
+        # await queue.push({"url": "https://www.baidu.com/?kw=1", "task_id": '123'})
+        print(await queue.pop())
+
+
+    if __name__ == "__main__":
+        import asyncio
+        asyncio.run(run())
+    """
+
+    if isinstance(redis_tcp, str):
+        redis_tcp = {'url': redis_tcp}
+    server = await AsyncRedis(**redis_tcp).get_redis_pool
+    return PriorityQueue(server=server, spider=spider, key=key, serializer='json')
+
+
+spider_aio_priority_queue = aio_priority_queue
