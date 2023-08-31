@@ -74,3 +74,7 @@ class DummyStatsCollector(StatsCollector):
         pass
 
     def max_value(self, key, value, spider=None):
+        pass
+
+    def min_value(self, key, value, spider=None):
+        pass
