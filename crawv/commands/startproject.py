@@ -74,3 +74,53 @@ class Command(ASCommand):
         for name in names:
             if name in ignored_names:
                 continue
+
+            srcname = os.path.join(src, name)
+            dstname = os.path.join(dst, name)
+            if os.path.isdir(srcname):
+                self._copytree(srcname, dstname)
+            else:
+                copy2(srcname, dstname)
+                _make_writable(dstname)
+
+        copystat(src, dst)
+        _make_writable(dst)
+
+    def run(self, args, opts):
+        if len(args) not in (1, 2):
+            raise UsageError()
+
+        project_name = args[0]
+        project_dir = args[0]
+
+        if len(args) == 2:
+            project_dir = args[1]
+
+        if exists(join(project_dir, 'crawv.cfg')):
+            self.exitcode = 1
+            print(f'Error: crawv.cfg already exists in {abspath(project_dir)}')
+            return
+
+        if not self._is_valid_name(project_name):
+            self.exitcode = 1
+            return
+
+        self._copytree(self.templates_dir, abspath(project_dir))
+        # move(join(project_dir, 'module'), join(project_dir, project_name))
+        for paths in TEMPLATES_TO_RENDER:
+            path = join(*paths)
+            tplfile = join(project_dir, string.Template(path).substitute(project_name=project_name))
+            render_templatefile(tplfile, project_name=project_name, ProjectName=string_camelcase(project_name))
+        print(f"New Crawv project '{project_name}', using template directory "
+              f"'{self.templates_dir}', created in:")
+        print(f"    {abspath(project_dir)}\n")
+        print("You can start your first spider with:")
+        print(f"    cd {project_dir}")
+        print("    crawv genspider/onespider example")
+
+    @property
+    def templates_dir(self):
+        return join(
+            self.settings['TEMPLATES_DIR'] or join(crawv.__path__[0], 'templates'),
+            'project'
+        )
