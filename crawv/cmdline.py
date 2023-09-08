@@ -74,3 +74,79 @@ def _print_header(settings, inproject):
 
 
 def _print_commands(settings, inproject):
+    _print_header(settings, inproject)
+    print("Usage:")
+    print("  crawv <command> [options] [args]\n")
+    print("Available commands:")
+    cmds = _get_commands_dict(settings, inproject)
+    for cmdname, cmdclass in sorted(cmds.items()):
+        print(f"  {cmdname:<13} {cmdclass.short_desc()}")
+    if not inproject:
+        print()
+        print("  [ more ]      More commands available when run from project directory")
+    print()
+    print('Use "crawv <command> -h" to see more info about a command')
+
+
+def _print_unknown_command(settings, cmdname, inproject):
+    _print_header(settings, inproject)
+    print(f"Unknown command: {cmdname}\n")
+    print('Use "crawv" to see available commands')
+
+
+def _run_print_help(parser, func, *a, **kw):
+    try:
+        func(*a, **kw)
+    except UsageError as e:
+        if str(e):
+            parser.error(str(e))
+        if e.print_help:
+            parser.print_help()
+        sys.exit(2)
+
+
+def execute(argv=None, settings=None):
+    if argv is None:
+        argv = sys.argv
+
+    if settings is None:
+        settings = get_project_settings()
+        # set EDITOR from environment if available
+        try:
+            editor = os.environ['EDITOR']
+        except KeyError:
+            pass
+        else:
+            settings['EDITOR'] = editor
+
+    inproject = inside_project()
+    cmds = _get_commands_dict(settings, inproject)
+    cmdname = _pop_command_name(argv)
+    if not cmdname:
+        _print_commands(settings, inproject)
+        sys.exit(0)
+    elif cmdname not in cmds:
+        _print_unknown_command(settings, cmdname, inproject)
+        sys.exit(2)
+
+    cmd = cmds[cmdname]
+    parser = argparse.ArgumentParser(formatter_class=ASHelpFormatter,
+                                     usage=f"crawv {cmdname} {cmd.syntax()}",
+                                     conflict_handler='resolve',
+                                     description=cmd.long_desc())
+    settings.setdict(cmd.default_settings, priority='command')
+    cmd.settings = settings
+    cmd.add_options(parser)
+    opts, args = parser.parse_known_args(args=argv[1:])
+    _run_print_help(parser, cmd.process_options, args, opts)
+
+    if getattr(cmd, "requires_process"):
+        # cmd.crawler_process = CrawlerProcess(settings)
+        cmd.crawler_process = call_grace_instance("crawler_process", settings)
+    _run_print_help(parser, _run_command, cmd, args, opts)
+    sys.exit(cmd.exitcode)
+
+
+def _run_command(cmd, args, opts):
+    if opts.profile:
+        _run_command_profiled(cmd, args, opts)
