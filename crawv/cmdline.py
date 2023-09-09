@@ -150,3 +150,20 @@ def execute(argv=None, settings=None):
 def _run_command(cmd, args, opts):
     if opts.profile:
         _run_command_profiled(cmd, args, opts)
+    else:
+        cmd.run(args, opts)
+
+
+def _run_command_profiled(cmd, args, opts):
+    if opts.profile:
+        sys.stderr.write(f"crawv: writing cProfile stats to {opts.profile!r}\n")
+    loc = locals()
+    p = cProfile.Profile()
+    p.runctx('cmd.run(args, opts)', globals(), loc)
+    if opts.profile:
+        p.dump_stats(opts.profile)
+
+
+if __name__ == '__main__':
+    execute()
+
