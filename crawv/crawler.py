@@ -150,3 +150,40 @@ class CrawlerProcess(object):
             self.active_crawler(crawler)
         while self._active:
             self._group.append(await asyncio.gather(*self._active, return_exceptions=True))
+
+    async def _graceful_stop_reactor(self):
+        for task in self._active:
+            task.cancel()
+        for group in self._group:
+            group.cancel()
+        current_task = asyncio.all_tasks()
+        for ct in current_task:
+            ct.cancel()
+        await asyncio.sleep(1)
+        await self.stop()
+
+    async def _force_stop_reactor(self):
+        asyncio.get_running_loop().stop()
+
+    def _signal_shutdown(self, signum, _):
+        install_shutdown_handlers(self._signal_kill)
+        signame = signal_names[signum]
+        self.logger.info("Received {signame}, shutting down gracefully. Send again to force ",
+                    **{'signame': signame})
+        asyncio.create_task(self._graceful_stop_reactor())
+
+    def _signal_kill(self, signum, _):
+        install_shutdown_handlers(signal.SIG_IGN)
+        signame = signal_names[signum]
+        self.logger.info('Received {signame} twice, forcing unclean shutdown',
+                    **{'signame': signame})
+        asyncio.create_task(self._force_stop_reactor())
+
+    def start(self):
+        self.di.get("tools").install_event_loop_tips()
+        self.di.get("tools").install_patch_method()
+        try:
+            anyio.run(self.run, backend='asyncio')
+            # asyncio.run(self.run())
+        except asyncio.CancelledError:
+            pass
