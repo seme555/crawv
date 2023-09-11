@@ -74,3 +74,79 @@ class Crawler(object):
 
     async def stop(self):
         if self.crawling:
+            self.crawling = False
+            await self.engine.stop()
+        self._close_wait = True
+
+
+class CrawlerProcess(object):
+    crawlers = property(
+        lambda self: self._crawlers,
+        doc="Set of :class:`crawlers <crawv.crawler.Crawler>`"
+    )
+
+    def __init__(self, settings: Union[Settings, dict, None] = None):
+        if isinstance(settings, dict) or settings is None:
+            settings = Settings(settings)
+        self.settings = settings
+        self._crawlers = set()
+        self._active = set()
+        self.bootstrap_failed = False
+        self._group = []
+        install_shutdown_handlers(self._signal_shutdown)
+        self.di.get("log").std_log_crawv_info(settings)
+
+    def crawl(self, crawler_or_spidercls: Union[Type[Spider], Crawler], *args, **kwargs) -> Crawler:
+        crawler = self.create_crawler(crawler_or_spidercls, *args, **kwargs)
+        self.crawlers.add(crawler)
+        return crawler
+
+    def crawl_soon(self, crawler_or_spidercls: Union[Type[Spider], Crawler], *args, **kwargs):
+        crawler = self.crawl(crawler_or_spidercls, *args, **kwargs)
+        self.active_crawler(crawler)
+
+    def create_crawler(self, crawler_or_spidercls: Union[Type[Spider], Crawler], *args, **kwargs) -> Crawler:
+        if isinstance(crawler_or_spidercls, Crawler):
+            return crawler_or_spidercls
+        if isinstance(crawler_or_spidercls, str):
+            crawler_or_spidercls = self.load_spider(spider_key=crawler_or_spidercls, **kwargs)
+        settings = kwargs.pop('settings', self.settings)
+        return call_grace_instance("crawler", crawler_or_spidercls, *args, settings=settings, **kwargs)
+
+    def active_crawler(self, crawler: Crawler):
+        task = asyncio.create_task(crawler.crawl())
+        self._active.add(task)
+
+        def _done(result):
+            self.crawlers.discard(crawler)
+            self._active.discard(task)
+            self.bootstrap_failed |= not getattr(crawler, 'spider', None)
+            return result
+
+        task.add_done_callback(_done)
+
+    def load_spider(self, path: str = None, spider_key: str = None, spider_like: str = ""):
+        if path is None:
+            path = ''.join(['./', self.settings.get("NEWSPIDER_MODULE", "spiders")])
+        spiders_cls = DependencyInjection.load_all_spider(path)
+
+        if spider_key is not None:
+            if spiders_cls.get(spider_key):
+                return spiders_cls[spider_key]
+            else:
+                raise KeyError(f"Spider not found: {spider_key}")
+        for name, spider_cls in spiders_cls.items():
+            if spider_like and not spider_like in name:
+                continue
+            self.crawl(spider_cls)
+            self.logger.debug(
+                "Loading spider({name}) from {path}", **{"name": name, "path": path})
+
+    async def stop(self):
+        return await asyncio.gather(*[c.stop() for c in list(self.crawlers)])
+
+    async def run(self):
+        for crawler in self.crawlers:
+            self.active_crawler(crawler)
+        while self._active:
+            self._group.append(await asyncio.gather(*self._active, return_exceptions=True))
