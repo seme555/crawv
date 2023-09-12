@@ -150,3 +150,59 @@ class DependencyInjection(object):
         if crawler and hasattr(objcls, 'from_crawler'):
             return objcls.from_crawler(crawler, *args, **kwargs)
         elif hasattr(objcls, 'from_settings'):
+            return objcls.from_settings(settings, *args, **kwargs)
+        else:
+            return objcls(*args, **kwargs)
+
+    async def inject_runner(self):
+        if any([not self.settings.get('DI_CONFIG'), not self.settings.get('DI_CONFIG_CLS')]):
+            raise KeyError('Settings DI_CONFIG/DI_CONFIG_CLS not be None')
+        for key, value in self.settings['DI_CONFIG'].items():
+            self.load_object_slot(key, value)
+        # self.slot.live_beat = asyncio.create_task(self.live_beat())
+
+    async def live_beat(self):
+        while 1:
+            if not self.slot.is_live:
+                await asyncio.sleep(20)
+                break
+            asyncio.create_task(self.inject_runner())
+
+
+class DependencyInjectionCls(DependencyInjection):
+
+    def __init__(self):
+        self.c_slot = CSlot()
+        self.settings = get_project_settings()
+
+    def inject(self):
+        if self.c_slot.empty():
+            for key, value in self.settings['DI_CONFIG_CLS'].items():
+                self.load_object_slot(key, value, cls=True)
+        return self.c_slot
+
+
+_create_dependency = DependencyInjectionCls()
+load_object = _create_dependency.load_object
+walk_modules = _create_dependency.walk_modules
+settings_ins = _create_dependency.settings
+
+
+class object_ref(type):
+    def __init__(msc, *args, **kwargs):
+        msc.di = _create_dependency.inject()
+        msc.logger = msc.di.get("log").logger
+        super().__init__(*args, **kwargs)
+
+
+def call_grace_instance(obj, *args, only_instance=None, **kwargs):
+
+    if isinstance(obj, str):
+        obj = load_object(settings_ins['DI_CREATE_CLS'].get(obj))
+
+    class Inner(obj, metaclass=object_ref):
+        pass
+    if only_instance is None:
+        return Inner(*args, **kwargs)
+    else:
+        return Inner
