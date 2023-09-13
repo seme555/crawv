@@ -74,3 +74,32 @@ class LogFormatter:
         .. versionadded:: 2.0
         """
         return {
+            'level': "ERROR",
+            'msg': SPIDERERRORMSG,
+            'args': {
+                'request': request,
+                'referer': referer_str(request),
+            }
+        }
+
+    def download_error(self, failure, request, spider, errmsg=None):
+        """Logs a download error message from a spider (typically coming from
+        the engine).
+
+        .. versionadded:: 2.0
+        """
+        args = {'request': request}
+        if errmsg:
+            msg = DOWNLOADERRORMSG_LONG
+            args['errmsg'] = errmsg
+        else:
+            msg = DOWNLOADERRORMSG_SHORT
+        return {
+            'level': "ERROR",
+            'msg': msg,
+            'args': args,
+        }
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls()
