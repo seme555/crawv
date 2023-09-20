@@ -74,3 +74,74 @@ class TestAdaptiveConcurrencyMiddleware(unittest.TestCase):
         # Verify that concurrency was increased
         self.assertGreater(self.middleware.current_concurrency, 10)
         
+        # Verify that the setting was updated
+        self.crawler.settings.set.assert_called_with('CONCURRENT_REQUESTS', self.middleware.current_concurrency)
+        
+        # Verify that the change was logged
+        self.middleware.logger.info.assert_called_once()
+
+    async def test_adjust_concurrency_slower_responses(self):
+        """Test that concurrency is decreased when responses are slower than target."""
+        # Fill the response times deque with slow responses (1.0s)
+        self.middleware.response_times.extend([1.0] * self.middleware.window_size)
+        self.middleware.current_concurrency = 10
+        
+        # Adjust concurrency
+        self.middleware._adjust_concurrency()
+        
+        # Verify that concurrency was decreased
+        self.assertLess(self.middleware.current_concurrency, 10)
+        
+        # Verify that the setting was updated
+        self.crawler.settings.set.assert_called_with('CONCURRENT_REQUESTS', self.middleware.current_concurrency)
+        
+        # Verify that the change was logged
+        self.middleware.logger.info.assert_called_once()
+
+    async def test_adjust_concurrency_respects_min_max(self):
+        """Test that concurrency adjustments respect the min and max limits."""
+        # Test minimum limit
+        self.middleware.response_times.extend([2.0] * self.middleware.window_size)  # Very slow responses
+        self.middleware.current_concurrency = 6
+        
+        self.middleware._adjust_concurrency()
+        
+        # Verify that concurrency was not decreased below the minimum
+        self.assertEqual(self.middleware.current_concurrency, 5)
+        
+        # Test maximum limit
+        self.middleware.response_times.clear()
+        self.middleware.response_times.extend([0.1] * self.middleware.window_size)  # Very fast responses
+        self.middleware.current_concurrency = 19
+        
+        self.middleware._adjust_concurrency()
+        
+        # Verify that concurrency was not increased above the maximum
+        self.assertEqual(self.middleware.current_concurrency, 20)
+
+    async def test_disabled_middleware(self):
+        """Test that the middleware does nothing when disabled."""
+        # Disable the middleware
+        self.middleware.enabled = False
+        
+        # Process a request
+        result = await self.middleware.process_request(self.request, self.spider)
+        
+        # Verify that the result is None
+        self.assertIsNone(result)
+        
+        # Verify that no start time was added
+        self.assertNotIn('request_start_time', self.request.meta)
+        
+        # Process a response
+        result = await self.middleware.process_response(self.request, self.response, self.spider)
+        
+        # Verify that the result is the response
+        self.assertEqual(result, self.response)
+        
+        # Verify that no response times were recorded
+        self.assertEqual(len(self.middleware.response_times), 0)
+
+
+if __name__ == '__main__':
+    unittest.main()
