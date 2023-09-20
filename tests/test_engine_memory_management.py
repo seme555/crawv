@@ -74,3 +74,32 @@ class TestEngineMemoryManagement(unittest.TestCase):
         asyncio.run(self._run_heart_beat(10))
         
         # With GC_ENABLED=False, gc.collect should never be called
+        self.mock_gc.assert_not_called()
+
+    def test_gc_frequency(self):
+        """Test that garbage collection respects the frequency setting."""
+        # Set frequency to 5
+        self.crawler.settings['GC_FREQUENCY'] = 5
+        
+        asyncio.run(self._run_heart_beat(15))
+        
+        # With GC_FREQUENCY=5, we should have called gc.collect about 3 times in 15 iterations
+        self.assertGreaterEqual(self.mock_gc.call_count, 2)
+        self.assertLessEqual(self.mock_gc.call_count, 4)
+
+    def test_gc_exception_handling(self):
+        """Test that exceptions in garbage collection are handled properly."""
+        # Make gc.collect raise an exception
+        self.mock_gc.side_effect = Exception("Test exception")
+        
+        asyncio.run(self._run_heart_beat(5))
+        
+        # The exception should be caught and logged
+        self.engine.logger.warning.assert_called()
+        
+        # The heart_beat should continue running despite the exception
+        self.assertGreater(self.mock_sleep.call_count, 3)
+
+
+if __name__ == '__main__':
+    unittest.main()
