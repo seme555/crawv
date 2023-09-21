@@ -74,3 +74,76 @@ class TestHttpxHandler(unittest.TestCase):
         
         # Verify that the response was created correctly
         self.mock_response_cls.assert_called_once()
+        self.assertEqual(response, self.mock_response_cls.return_value)
+
+    async def test_timeout_exception(self):
+        """Test that a timeout exception is handled properly."""
+        # Make the client raise a timeout exception
+        self.mock_client.request.side_effect = httpx.TimeoutException('Timeout')
+        
+        # Mock the exceptions
+        mock_timeout_error = MagicMock()
+        self.handler.di.get.side_effect = lambda x: mock_timeout_error if x == 'exceptions' else self.mock_response_cls
+        
+        with self.assertRaises(Exception):
+            await self.handler.download_request(self.request, self.spider)
+        
+        # Verify that the error was logged
+        self.handler.logger.warning.assert_called_once()
+        
+        # Verify that the correct exception was raised
+        mock_timeout_error.TimeoutError.assert_called_once()
+
+    async def test_request_error(self):
+        """Test that a request error is handled properly."""
+        # Make the client raise a request error
+        self.mock_client.request.side_effect = httpx.RequestError('Connection error')
+        
+        # Mock the exceptions
+        mock_connection_error = MagicMock()
+        self.handler.di.get.side_effect = lambda x: mock_connection_error if x == 'exceptions' else self.mock_response_cls
+        
+        with self.assertRaises(Exception):
+            await self.handler.download_request(self.request, self.spider)
+        
+        # Verify that the error was logged
+        self.handler.logger.warning.assert_called_once()
+        
+        # Verify that the correct exception was raised
+        mock_connection_error.ConnectionError.assert_called_once()
+
+    async def test_unexpected_error(self):
+        """Test that an unexpected error is handled properly."""
+        # Make the client raise an unexpected error
+        self.mock_client.request.side_effect = ValueError('Unexpected error')
+        
+        # Mock the exceptions
+        mock_download_error = MagicMock()
+        self.handler.di.get.side_effect = lambda x: mock_download_error if x == 'exceptions' else self.mock_response_cls
+        
+        with self.assertRaises(Exception):
+            await self.handler.download_request(self.request, self.spider)
+        
+        # Verify that the error was logged
+        self.handler.logger.error.assert_called_once()
+        
+        # Verify that the correct exception was raised
+        mock_download_error.DownloadError.assert_called_once()
+
+    async def test_proxy_configuration(self):
+        """Test that proxy configuration is handled properly."""
+        # Set up a request with a proxy
+        self.request.meta['proxy'] = 'http://proxy.example.com:8080'
+        
+        await self.handler.download_request(self.request, self.spider)
+        
+        # Verify that the client was created with the proxy
+        args, kwargs = self.mock_client_cls.call_args
+        self.assertEqual(kwargs['proxies'], 'http://proxy.example.com:8080')
+        
+        # Verify that the proxy usage was logged
+        self.handler.logger.debug.assert_called_once()
+
+
+if __name__ == '__main__':
+    unittest.main()
