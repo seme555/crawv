@@ -74,3 +74,36 @@ class TestEngineTaskBeat(unittest.TestCase):
         # Verify that we used the active sleep time
         self.mock_sleep.assert_called_with(0.1)
 
+    def test_task_beat_no_requests(self):
+        """Test that task_beat handles the case when no requests are available."""
+        # Set up mock to return no requests
+        self.slot.scheduler.async_next_request.return_value = []
+        
+        asyncio.run(self._run_task_beat(2))
+        
+        # Verify that scheduler.async_next_request was called
+        self.slot.scheduler.async_next_request.assert_called()
+        
+        # Verify that add_request and fetch were not called
+        self.slot.add_request.assert_not_called()
+        self.engine.downloader.fetch.assert_not_called()
+        
+        # Verify that we used the idle sleep time
+        self.mock_sleep.assert_called_with(0.5)
+
+    def test_task_beat_with_backout(self):
+        """Test that task_beat respects the backout condition."""
+        # Set up mock to indicate backout is needed
+        self.engine._needs_backout.return_value = True
+        
+        asyncio.run(self._run_task_beat(2))
+        
+        # Verify that scheduler.async_next_request was not called
+        self.slot.scheduler.async_next_request.assert_not_called()
+        
+        # Verify that we used the idle sleep time
+        self.mock_sleep.assert_called_with(0.5)
+
+
+if __name__ == '__main__':
+    unittest.main()
