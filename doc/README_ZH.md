@@ -150,3 +150,79 @@ class SingleQuotesSpider(Spider):
 
 
 if __name__ == '__main__':
+    quotes = SingleQuotesSpider()
+    quotes.start()
+```
+
+### è¿è¡Œçˆ¬è™«
+
+```shell
+# ä»Žé¡¹ç›®ä¸­è¿è¡Œçˆ¬è™«
+crawv crawl quotes
+
+# è¿è¡Œå•ä¸ªçˆ¬è™«è„šæœ¬
+crawv runspider quotes.py
+```
+
+![run](./images/run.png)
+
+### ä»Žä»£ç ä¸­è¿è¡Œ
+
+```python
+from crawv.crawler import call_grace_instance
+from crawv.utils.tools import get_project_settings
+
+# æ–¹æ³•1ï¼šä»Žç›®å½•ä¸­åŠ è½½æ‰€æœ‰çˆ¬è™«
+def load_spiders_from_directory():
+    process = call_grace_instance("crawler_process", get_project_settings())
+    process.load_spider(path='./spiders')
+    process.start()
+
+# æ–¹æ³•2ï¼šæŒ‰åç§°è¿è¡Œç‰¹å®šçˆ¬è™«
+def run_specific_spider():
+    process = call_grace_instance("crawler_process", get_project_settings())
+    process.crawl('myspider')
+    process.start()
+
+if __name__ == '__main__':
+    run_specific_spider()
+```
+
+## é…ç½®
+
+Crawvå¯ä»¥é€šè¿‡é¡¹ç›®ä¸­çš„`settings.py`æ–‡ä»¶è¿›è¡Œé…ç½®ã€‚ä»¥ä¸‹æ˜¯æœ€é‡è¦çš„è®¾ç½®ï¼š
+
+### å¹¶å‘è®¾ç½®
+
+```python
+# æœ€å¤§å¹¶å‘å¤„ç†é¡¹ç›®æ•°
+CONCURRENT_ITEMS = 100
+
+# æœ€å¤§å¹¶å‘è¯·æ±‚æ•°
+CONCURRENT_REQUESTS = 16
+
+# æ¯ä¸ªåŸŸåçš„æœ€å¤§å¹¶å‘è¯·æ±‚æ•°
+CONCURRENT_REQUESTS_PER_DOMAIN = 8
+
+# æ¯ä¸ªIPçš„æœ€å¤§å¹¶å‘è¯·æ±‚æ•°
+CONCURRENT_REQUESTS_PER_IP = 0
+```
+
+### ä¸‹è½½è®¾ç½®
+
+```python
+# è¯·æ±‚é—´çš„å»¶è¿Ÿï¼ˆç§’ï¼‰
+DOWNLOAD_DELAY = 0
+
+# è¯·æ±‚è¶…æ—¶æ—¶é—´ï¼ˆç§’ï¼‰
+DOWNLOAD_TIMEOUT = 20
+
+# æ˜¯å¦éšæœºåŒ–ä¸‹è½½å»¶è¿Ÿ
+RANDOMIZE_DOWNLOAD_DELAY = True
+
+# ä½¿ç”¨çš„HTTPåŽç«¯
+DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.httpx.HttpxDownloadHandler"
+# å…¶ä»–é€‰é¡¹ï¼š
+# DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.aiohttp.AioHttpDownloadHandler"
+# DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.requests.RequestsDownloadHandler"
+```
