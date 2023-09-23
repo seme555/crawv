@@ -226,3 +226,79 @@ DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.httpx.HttpxDownloadHandler"
 # DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.aiohttp.AioHttpDownloadHandler"
 # DOWNLOAD_HANDLER = "crawv.core.downloader.handlers.requests.RequestsDownloadHandler"
 ```
+
+### è°ƒåº¦å™¨è®¾ç½®
+
+```python
+# ä½¿ç”¨çš„è°ƒåº¦å™¨ï¼ˆåŸºäºŽå†…å­˜æˆ–Redisï¼‰
+SCHEDULER = "crawv.core.scheduler.memory.MemoryScheduler"
+# åˆ†å¸ƒå¼çˆ¬å–ï¼š
+# SCHEDULER = "crawv.core.scheduler.redis.RedisScheduler"
+
+# Redisè¿žæŽ¥è®¾ç½®ï¼ˆç”¨äºŽRedisè°ƒåº¦å™¨ï¼‰
+REDIS_URI = "redis://localhost:6379"
+QUEUE_KEY = "%(spider)s:queue"
+```
+
+## å“åº”API
+
+Crawvæä¾›äº†ä¸°å¯Œçš„APIæ¥å¤„ç†å“åº”ï¼š
+
+### æå–æ•°æ®
+
+```python
+# ä½¿ç”¨CSSé€‰æ‹©å™¨
+title = response.css('title::text').get()
+all_links = response.css('a::attr(href)').getall()
+
+# ä½¿ç”¨XPath
+title = response.xpath('//title/text()').get()
+all_links = response.xpath('//a/@href').getall()
+```
+
+### è·Ÿè¸ªé“¾æŽ¥
+
+```python
+# è·Ÿè¸ªé“¾æŽ¥
+yield response.follow('next-page.html', self.parse)
+
+# ä½¿ç”¨å›žè°ƒè·Ÿè¸ªé“¾æŽ¥
+yield response.follow('details.html', self.parse_details)
+
+# è·Ÿè¸ªæ‰€æœ‰åŒ¹é…çš„CSSé€‰æ‹©å™¨çš„é“¾æŽ¥
+yield from response.follow_all(css='a.product::attr(href)', callback=self.parse_product)
+```
+
+## æ›´å¤šå‘½ä»¤
+
+```shell
+crawv -h
+```
+
+## åˆ†å¸ƒå¼çˆ¬å–
+
+è¦å¯ç”¨åŸºäºŽRedisçš„åˆ†å¸ƒå¼çˆ¬å–ï¼š
+
+1. åœ¨è®¾ç½®ä¸­é…ç½®Redisï¼š
+
+```python
+SCHEDULER = "crawv.core.scheduler.redis.RedisScheduler"
+REDIS_URI = "redis://localhost:6379"
+QUEUE_KEY = "%(spider)s:queue"
+```
+
+2. åœ¨ä¸åŒçš„æœºå™¨ä¸Šè¿è¡Œå¤šä¸ªçˆ¬è™«å®žä¾‹ï¼Œå…¨éƒ¨è¿žæŽ¥åˆ°åŒä¸€ä¸ªRedisæœåŠ¡å™¨ã€‚
+
+## è´¡çŒ®
+
+è¯·é€šè¿‡åˆ›å»ºissueå‘é¡¹ç›®æ‰€æœ‰è€…æäº¤æ‚¨çš„å»ºè®®ã€‚
+
+## æ„Ÿè°¢
+
+[aiohttp](https://github.com/aio-libs/aiohttp/)
+
+[scrapy](https://github.com/scrapy/scrapy)
+
+[loguru](https://github.com/Delgan/loguru)
+
+[httpx](https://github.com/encode/httpx)
