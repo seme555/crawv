@@ -28,13 +28,13 @@ def set_log_config(formatter: str, settings):
                 'type': 'None'
             },
             "levels": [
-                dict(name="TRACE", icon="âœï¸", color="<cyan><bold>"),
-                dict(name="DEBUG", icon="â„ï¸", color="<blue><bold>"),
-                dict(name="INFO", icon="â™»ï¸", color="<bold>"),
-                dict(name="SUCCESS", icon="âœ”ï¸", color="<green><bold>"),
-                dict(name="WARNING", icon="âš ï¸", color="<yellow><bold>"),
-                dict(name="ERROR", icon="âŒï¸", color="<red><bold>"),
-                dict(name="CRITICAL", icon="â˜ ï¸", color="<RED><bold>"),
+                dict(name="TRACE", icon="✏️", color="<cyan><bold>"),
+                dict(name="DEBUG", icon="❄️", color="<blue><bold>"),
+                dict(name="INFO", icon="♻️", color="<bold>"),
+                dict(name="SUCCESS", icon="✔️", color="<green><bold>"),
+                dict(name="WARNING", icon="⚠️", color="<yellow><bold>"),
+                dict(name="ERROR", icon="❌️", color="<red><bold>"),
+                dict(name="CRITICAL", icon="☠️", color="<RED><bold>"),
             ]
         }
     }

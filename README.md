@@ -6,7 +6,7 @@
 
 A powerful, high-performance asynchronous web crawling and scraping framework built on Python's asyncio ecosystem.
 
-English | [ä¸­æ–‡](./doc/README_ZH.md)
+English | [中文](./doc/README_ZH.md)
 
 ## Overview
 

@@ -169,7 +169,7 @@ async def call_helper(f, *args, **kwargs):
 
 
 async def async_generator_wrapper(wrapped):
-    """å°†ä¼ å…¥çš„å¯¹è±¡å˜æˆAsyncGeneratorTypeç±»åž‹"""
+    """将传入的对象变成AsyncGeneratorType类型"""
     if isinstance(wrapped, AsyncGeneratorType):
         return wrapped
 
@@ -290,13 +290,13 @@ def singleton(cls):
 
 def exec_js_func(js_file_path, func_name, func_params=None, cwd_path=None, cmd_path='node'):
     """
-    è°ƒç”¨nodeæ‰§è¡Œjsæ–‡ä»¶
-    :param js_file_path: jsæ–‡ä»¶è·¯å¾„
-    :param func_name: è¦è°ƒç”¨çš„jsæ–‡ä»¶å†…çš„å‡½æ•°åç§°
-    :param func_params: funcçš„å‚æ•°
-    :param cwd_path: node_modulesæ–‡ä»¶æ‰€åœ¨è·¯å¾„ï¼Œå¦‚æžœä¸æŒ‡å®šå°†ä½¿ç”¨å…¨å±€çš„node_modules
-    :param cmd_path: nodeçš„ä½ç½®ï¼Œ ä¾‹å¦‚ï¼šr'D:\\path\to\node.exe'
-    :return: func_nameå‡½æ•°çš„æ‰§è¡Œç»“æžœ
+    调用node执行js文件
+    :param js_file_path: js文件路径
+    :param func_name: 要调用的js文件内的函数名称
+    :param func_params: func的参数
+    :param cwd_path: node_modules文件所在路径，如果不指定将使用全局的node_modules
+    :param cmd_path: node的位置， 例如：r'D:\\path\to\node.exe'
+    :return: func_name函数的执行结果
     """
     import execjs
 

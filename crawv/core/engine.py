@@ -133,7 +133,7 @@ class ExecutionEngine(object):
     def has_capacity(self):
         return not bool(self.slot)
 
-    async def crawl(self, request, spider):  # å°†ç½‘å€ è¯·æ±‚åŠ å…¥é˜Ÿåˆ—
+    async def crawl(self, request, spider):  # 将网址 请求加入队列
         if spider not in self.open_spiders:
             raise RuntimeError("Spider %r not opened when crawling: %s" % (spider.name, request))
 
