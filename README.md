@@ -4,6 +4,8 @@
 
 # Crawv
 
+[![CI](https://github.com/seme555/crawv/actions/workflows/ci.yml/badge.svg)](https://github.com/seme555/crawv/actions/workflows/ci.yml)
+
 A powerful, high-performance asynchronous web crawling and scraping framework built on Python's asyncio ecosystem.
 
 English | [中文](./doc/README_ZH.md)

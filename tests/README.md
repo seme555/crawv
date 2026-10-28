@@ -10,6 +10,8 @@ To run all tests, use the following command from the project root:
 python -m tests.run_tests
 ```
 
+CI runs the same command on every push and pull request to `main` via GitHub Actions (see `.github/workflows/ci.yml`).
+
 To run a specific test file:
 
 ```bash
